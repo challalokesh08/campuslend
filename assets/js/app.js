@@ -130,22 +130,86 @@
   }
 
   /**
-   * Two faces: the photo (or the generated art when there is no photo) and
-   * the emoji. The parent element carries .is-flipped; CSS rotates the pair.
+   * Which face the reader sees first. Each profile carries the choice; the
+   * default is the emoji, so the photo is something you uncover by flipping.
+   */
+  function faceFirst() {
+    return state.me && state.me.face_first === 'photo' ? 'photo' : 'emoji';
+  }
+
+  function otherFace(face) {
+    return face === 'emoji' ? 'photo' : 'emoji';
+  }
+
+  /**
+   * Two faces, in whichever order this reader prefers. The parent element
+   * carries .is-flipped; CSS rotates the pair. The "back" face is rotated up
+   * front so it lands the right way round when the card turns.
    */
   function flipFaces(item) {
     const h = item.hue == null ? hueOf(item.title || item.id) : item.hue;
-    return `
-      <span class="flip">
-        <span class="flip__face flip__face--front">
-          <img src="${esc(photoOf(item))}" alt="" loading="lazy" decoding="async">
-        </span>
-        <span class="flip__face flip__face--back" aria-hidden="true"
+    const first = faceFirst();
+
+    const face = (kind, side) => {
+      if (kind === 'photo') {
+        return `<span class="flip__face flip__face--${side}">
+            <img src="${esc(photoOf(item))}" alt="" loading="lazy" decoding="async">
+          </span>`;
+      }
+      return `<span class="flip__face flip__face--${side} flip__face--emoji" aria-hidden="true"
               style="background:linear-gradient(140deg,hsl(${h},54%,74%),hsl(${(h + 34) % 360},50%,52%))">
-          <span class="flip__emoji">${emojiFor(item)}</span>
-        </span>
-      </span>`;
+            <span class="flip__emoji">${emojiFor(item)}</span>
+          </span>`;
+    };
+
+    return `<span class="flip">${face(first, 'front')}${face(otherFace(first), 'back')}</span>`;
   }
+
+  /* --------------------------------------------------------------- media */
+
+  const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+  const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
+
+  function megabytes(bytes) {
+    return (bytes / (1024 * 1024)).toFixed(1).replace(/\.0$/, '') + ' MB';
+  }
+
+  function loadImageElement(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('That image could not be read. Try a JPEG or PNG.'));
+      };
+      img.src = url;
+    });
+  }
+
+  /**
+   * Phone photos are 4–12 MB. Downscaling here keeps Storage small, keeps demo
+   * mode inside the localStorage quota, and makes the chat load faster.
+   */
+  async function prepareImage(file, maxEdge = 1400, quality = 0.82) {
+    if (!file || !/^image\//.test(file.type)) throw new Error('Choose an image file.');
+    if (file.type === 'image/gif') return file;
+    const img = await loadImageElement(file);
+    const scale = Math.min(1, maxEdge / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, w, h);
+    const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', quality));
+    if (!blob) return file;
+    const name = (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg';
+    return new File([blob], name, { type: 'image/jpeg' });
+  }
+
 
   function timeShort(iso) {
     const d = new Date(iso);
@@ -335,11 +399,14 @@
   function card(item) {
     const mine = state.me && item.owner_id === state.me.id;
     const on = flipped.has(item.id);
+    const first = faceFirst();
+    const shown = on ? otherFace(first) : first;
     return `
       <article class="card">
         <button class="card__media${on ? ' is-flipped' : ''}" type="button"
-                data-flip="${esc(item.id)}" aria-pressed="${on}"
-                aria-label="${on ? 'Show photo' : 'Show emoji'}: ${esc(item.title)}">
+                data-flip="${esc(item.id)}" data-face-first="${first}" data-title="${esc(item.title)}"
+                aria-pressed="${on}"
+                aria-label="Show ${otherFace(shown)}: ${esc(item.title)}">
           ${flipFaces(item)}
           <span class="card__price" aria-hidden="true">₹${esc(item.price_per_hour)}<small>/hr</small></span>
           ${mine ? '<span class="card__badge card__badge--mine" aria-hidden="true">Yours</span>' : ''}
@@ -409,7 +476,8 @@
       cardEl.innerHTML = `
         <div class="sheet__hero">
           <button class="sheet__heroflip${flipped.has(item.id) ? ' is-flipped' : ''}" type="button"
-                  data-flip="${esc(item.id)}" aria-pressed="${flipped.has(item.id)}"
+                  data-flip="${esc(item.id)}" data-face-first="${faceFirst()}" data-title="${esc(item.title)}"
+                  aria-pressed="${flipped.has(item.id)}"
                   aria-label="Flip between photo and emoji for ${esc(item.title)}">
             ${flipFaces(item)}
             <span class="sheet__fliphint" aria-hidden="true"><svg><use href="#i-flip"/></svg>Tap to flip</span>
@@ -474,7 +542,9 @@
     const last = c.last;
     const mine = last && state.me && last.sender_id === state.me.id;
     const preview = last
-      ? (last.image_url && !last.body ? 'Photo' : (last.body || ''))
+      ? (last.media_url && !last.body
+          ? (last.media_type === 'video' ? 'Video' : 'Photo')
+          : (last.body || ''))
       : 'Say hello';
     const tick = mine ? `<svg class="tick ${last.read_at ? 'tick--read' : 'tick--sent'}" style="width:14px;height:14px"><use href="#${last.read_at ? 'i-checks' : 'i-check'}"/></svg>` : '';
 
@@ -547,8 +617,16 @@
         ? `<svg class="tick ${m.read_at ? 'tick--read' : 'tick--sent'}"><use href="#${m.read_at ? 'i-checks' : 'i-check'}"/></svg>`
         : '';
 
-      const body = m.image_url
-        ? `<div class="bubble bubble--img"><img src="${esc(m.image_url)}" alt="Photo" loading="lazy" onerror="this.style.display='none'"><span class="bubble__meta">${esc(timeShort(m.created_at))} ${tick}</span></div>`
+      const body = m.media_url
+        ? (m.media_type === 'video'
+            ? `<div class="bubble bubble--media">
+                 <video class="bubble__video" src="${esc(m.media_url)}" controls playsinline preload="metadata"></video>
+                 <span class="bubble__meta">${esc(timeShort(m.created_at))} ${tick}</span>
+               </div>`
+            : `<div class="bubble bubble--media bubble--img" data-media="${esc(m.media_url)}" role="button" tabindex="0" aria-label="Open photo">
+                 <img class="bubble__img" src="${esc(m.media_url)}" alt="Photo" loading="lazy" decoding="async" onerror="this.style.display='none'">
+                 <span class="bubble__meta">${esc(timeShort(m.created_at))} ${tick}</span>
+               </div>`)
         : `<div class="bubble">${esc(m.body)}<span class="bubble__meta">${esc(timeShort(m.created_at))} ${tick}</span></div>`;
 
       out.push(
@@ -666,19 +744,65 @@
     }
   }
 
-  async function sendImage(file) {
+  async function sendMedia(file) {
     if (!file || !state.activeConv) return;
+    const isVideo = /^video\//.test(file.type);
+    const isImage = /^image\//.test(file.type);
+
+    if (!isVideo && !isImage) {
+      toast('Send a photo or a video.', 'err');
+      return;
+    }
+
     try {
-      toast('Uploading photo…');
-      const url = await S.uploadImage(file);
-      await S.send(state.activeConv, { image: url, body: '' });
+      let payload = file;
+
+      if (isVideo) {
+        // Demo mode keeps files in localStorage, so it cannot swallow a real
+        // phone video. The live build uploads to Storage.
+        const cap = S.mode === 'demo' ? 1.5 * 1024 * 1024 : MAX_VIDEO_BYTES;
+        if (file.size > cap) {
+          throw new Error('That video is ' + megabytes(file.size) + '. The limit is ' + megabytes(cap) + '.');
+        }
+        toast('Uploading video…');
+      } else {
+        if (file.size > MAX_IMAGE_BYTES) throw new Error('That photo is over 15 MB.');
+        toast('Uploading photo…');
+        payload = await prepareImage(file, 1400, 0.8);
+      }
+
+      const url = await S.uploadChatMedia(payload);
+      await S.send(state.activeConv, {
+        media: url,
+        mediaType: isVideo ? 'video' : 'image',
+        body: '',
+      });
       state.messages = await S.messages(state.activeConv);
       renderMessages();
       scrollToEnd(true);
       loadConversations();
     } catch (err) {
-      toast(err.message || 'Could not send that photo.', 'err');
+      toast(err.message || 'Could not send that.', 'err');
     }
+  }
+
+  /* ------------------------------------------------------------ lightbox */
+
+  function openLightbox(src) {
+    const box = $('#lightbox');
+    const img = $('#lightbox-img');
+    img.src = src;
+    box.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeLightbox() {
+    const box = $('#lightbox');
+    if (!box || box.hidden) return false;
+    box.hidden = true;
+    $('#lightbox-img').removeAttribute('src');
+    document.body.style.overflow = '';
+    return true;
   }
 
   function autoGrow(el) {
@@ -748,6 +872,16 @@
           <span class="prow__value">${S.mode === 'live' ? 'Live' : 'Demo'}</span>
         </div>
         <div class="prow">
+          <span class="prow__icon"><svg><use href="#i-flip"/></svg></span>
+          <span class="prow__main"><span class="prow__label">Cards open with</span><span class="prow__sub">The face you see before flipping</span></span>
+          <span class="seg" role="group" aria-label="Default card face">
+            <button class="seg__btn${faceFirst() === 'emoji' ? ' is-on' : ''}" type="button"
+                    data-face="emoji" aria-pressed="${faceFirst() === 'emoji'}">Emoji</button>
+            <button class="seg__btn${faceFirst() === 'photo' ? ' is-on' : ''}" type="button"
+                    data-face="photo" aria-pressed="${faceFirst() === 'photo'}">Photo</button>
+          </span>
+        </div>
+        <div class="prow">
           <span class="prow__icon"><svg><use href="#i-eye"/></svg></span>
           <span class="prow__main"><span class="prow__label">Appearance</span><span class="prow__sub">Follows your device</span></span>
           <button class="btn btn--outline btn--sm" type="button" id="btn-theme">Toggle</button>
@@ -769,11 +903,51 @@
 
   /* ----------------------------------------------------------------- post */
 
+  let postPhoto = null;
+  let postPhotoPreview = '';
+
+  function clearPostPhoto() {
+    postPhoto = null;
+    if (postPhotoPreview) { URL.revokeObjectURL(postPhotoPreview); postPhotoPreview = ''; }
+    const img = $('#post-photo-preview');
+    if (img) { img.hidden = true; img.removeAttribute('src'); }
+    const empty = $('#post-photo-empty');
+    if (empty) empty.hidden = false;
+    const change = $('#post-photo-change');
+    if (change) change.hidden = true;
+    const input = $('#post-photo-input');
+    if (input) input.value = '';
+    const name = $('#post-photo-name');
+    if (name) name.textContent = '';
+  }
+
+  async function pickPostPhoto(file) {
+    const errEl = $('#post-error');
+    try {
+      errEl.hidden = true;
+      const ready = await prepareImage(file, 1200, 0.78);
+      postPhoto = ready;
+      if (postPhotoPreview) URL.revokeObjectURL(postPhotoPreview);
+      postPhotoPreview = URL.createObjectURL(ready);
+      const img = $('#post-photo-preview');
+      img.src = postPhotoPreview;
+      img.hidden = false;
+      $('#post-photo-empty').hidden = true;
+      $('#post-photo-change').hidden = false;
+      $('#post-photo-name').textContent = (file.name || 'photo') + ' · ' + Math.max(1, Math.round(ready.size / 1024)) + ' KB';
+    } catch (err) {
+      clearPostPhoto();
+      errEl.hidden = false;
+      errEl.textContent = err.message;
+    }
+  }
+
   function openPost() {
     const sel = $('#post-category');
     sel.innerHTML = S.categories.filter((c) => c.id !== 'all')
       .map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
     $('#post-error').hidden = true;
+    clearPostPhoto();
     $('#post-sheet').hidden = false;
     document.body.style.overflow = 'hidden';
   }
@@ -782,6 +956,7 @@
     $('#post-sheet').hidden = true;
     document.body.style.overflow = '';
     $('#post-form').reset();
+    clearPostPhoto();
   }
 
   async function submitPost(e) {
@@ -791,10 +966,20 @@
     const errEl = $('#post-error');
     const btn = $('#post-form button[type="submit"]');
 
+    if (!postPhoto) {
+      errEl.hidden = false;
+      errEl.textContent = 'Add a photo of the item. People are renting something they cannot touch yet.';
+      $('#post-photo-input').focus();
+      return;
+    }
+
     try {
+      errEl.hidden = true;
       btn.disabled = true;
+      btn.textContent = 'Uploading photo…';
+      const photo = await S.uploadPhoto(postPhoto);
       btn.textContent = 'Publishing…';
-      await S.createListing(data);
+      await S.createListing({ ...data, photo });
       closePost();
       toast('Listed. It is live in the market.');
       setView(state.view === 'selling' ? 'selling' : 'market');
@@ -854,10 +1039,10 @@
         const on = flipBtn.classList.toggle('is-flipped');
         flipBtn.setAttribute('aria-pressed', String(on));
         if (on) flipped.add(id); else flipped.delete(id);
-        if (flipBtn.classList.contains('card__media')) {
-          const item = state.listings.find((x) => x.id === id);
-          flipBtn.setAttribute('aria-label', (on ? 'Show photo' : 'Show emoji') + (item ? ': ' + item.title : ''));
-        }
+        const first = flipBtn.dataset.faceFirst === 'photo' ? 'photo' : 'emoji';
+        const shown = on ? otherFace(first) : first;
+        const title = flipBtn.dataset.title;
+        flipBtn.setAttribute('aria-label', 'Show ' + otherFace(shown) + (title ? ': ' + title : ''));
         return;
       }
 
@@ -876,10 +1061,29 @@
       const act = e.target.closest('[data-act="post"]');
       if (act) { openPost(); return; }
 
+      const media = e.target.closest('[data-media]');
+      if (media) { openLightbox(media.dataset.media); return; }
+
+      const face = e.target.closest('[data-face]');
+      if (face) {
+        const value = face.dataset.face === 'photo' ? 'photo' : 'emoji';
+        if (value === faceFirst()) return;
+        S.setFaceFirst(value).then(() => {
+          if (state.me) state.me.face_first = value;
+          renderProfile();
+          if (!$('#sheet').hidden) closeSheet();
+          loadMarket();
+          if (state.view === 'selling') loadSelling();
+          toast(value === 'photo' ? 'Cards now open with the photo' : 'Cards now open with the emoji');
+        }).catch((err) => toast(err.message, 'err'));
+        return;
+      }
+
       const close = e.target.closest('[data-close]');
       if (close) {
         if (close.dataset.close === 'sheet') closeSheet();
         if (close.dataset.close === 'post-sheet') closePost();
+        if (close.dataset.close === 'lightbox') closeLightbox();
         return;
       }
 
@@ -927,16 +1131,29 @@
     $('#btn-attach').addEventListener('click', () => $('#file-input').click());
     $('#file-input').addEventListener('change', (e) => {
       const f = e.target.files && e.target.files[0];
-      if (f) sendImage(f);
+      if (f) sendMedia(f);
       e.target.value = '';
+    });
+
+    $('#post-photo-input').addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (f) pickPostPhoto(f);
     });
 
     $('#post-form').addEventListener('submit', submitPost);
 
     document.addEventListener('keydown', (e) => {
-      if (e.key !== 'Escape') return;
-      if (!$('#sheet').hidden) closeSheet();
-      if (!$('#post-sheet').hidden) closePost();
+      if (e.key === 'Escape') {
+        if (closeLightbox()) return;
+        if (!$('#sheet').hidden) closeSheet();
+        if (!$('#post-sheet').hidden) closePost();
+        return;
+      }
+      const media = e.target.closest && e.target.closest('[data-media]');
+      if (media && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        openLightbox(media.dataset.media);
+      }
     });
 
     window.addEventListener('hashchange', route);

@@ -20,10 +20,15 @@ create table if not exists public.profiles (
   email         text,
   avatar_url    text,
   campus        text,
+  -- Which face a card shows before it is flipped: the emoji, or the photo.
+  face_first    text not null default 'emoji' check (face_first in ('emoji', 'photo')),
   rating_sum    integer not null default 0,
   rating_count  integer not null default 0,
   created_at    timestamptz not null default now()
 );
+
+-- Re-runnable: add the column to a table created by an earlier version.
+alter table public.profiles add column if not exists face_first text not null default 'emoji';
 
 -- ----------------------------------------------------------------- listings
 
@@ -45,6 +50,14 @@ create table if not exists public.listings (
 create index if not exists listings_owner_idx      on public.listings (owner_id);
 create index if not exists listings_created_idx    on public.listings (created_at desc);
 create index if not exists listings_category_idx   on public.listings (category) where status = 'active';
+
+-- A listing without a photo is not a listing: the photo is what the renter
+-- sees when they flip the card. NOT VALID so it can be added to a table that
+-- already has rows; every new insert and update is still checked.
+alter table public.listings drop constraint if exists listings_photo_required;
+alter table public.listings
+  add constraint listings_photo_required
+  check (photo_url is not null and photo_url <> '') not valid;
 
 -- ------------------------------------------------------------ conversations
 
@@ -72,11 +85,36 @@ create table if not exists public.messages (
   conversation_id uuid not null references public.conversations(id) on delete cascade,
   sender_id       uuid not null references public.profiles(id) on delete cascade,
   body            text not null default '' check (char_length(body) <= 4000),
-  image_url       text,
+  -- A photo or a video shared in the chat (before/after proof, for example).
+  media_url       text,
+  media_type      text check (media_type in ('image', 'video')),
   created_at      timestamptz not null default now(),
   read_at         timestamptz,
-  check (body <> '' or image_url is not null)
+  check (body <> '' or media_url is not null)
 );
+
+-- Re-runnable: migrate a table created by the earlier image-only version.
+alter table public.messages add column if not exists media_url  text;
+alter table public.messages add column if not exists media_type text;
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'messages' and column_name = 'image_url'
+  ) then
+    execute $sql$
+      update public.messages set media_url = image_url, media_type = 'image'
+      where media_url is null and image_url is not null
+    $sql$;
+    execute 'alter table public.messages drop column image_url';
+  end if;
+end $$;
+alter table public.messages drop constraint if exists messages_media_pair;
+alter table public.messages
+  add constraint messages_media_pair check ((media_url is null) = (media_type is null));
+alter table public.messages drop constraint if exists messages_media_type;
+alter table public.messages
+  add constraint messages_media_type check (media_type in ('image', 'video'));
 
 create index if not exists messages_conv_idx on public.messages (conversation_id, created_at);
 
@@ -270,7 +308,8 @@ language plpgsql
 as $$
 begin
   if new.body            is distinct from old.body
-  or new.image_url       is distinct from old.image_url
+  or new.media_url       is distinct from old.media_url
+  or new.media_type      is distinct from old.media_type
   or new.sender_id       is distinct from old.sender_id
   or new.conversation_id is distinct from old.conversation_id
   or new.created_at      is distinct from old.created_at then
@@ -310,24 +349,40 @@ end $$;
 -- Two public buckets. Reads are public because a URL in a chat has to render
 -- for the other person; writes are restricted to signed-in students, and each
 -- upload is namespaced by the uploader's own user id.
+--
+-- file_size_limit and allowed_mime_types are enforced by Storage itself, so a
+-- client that ignores the size checks in the app still cannot fill the bucket.
 
-insert into storage.buckets (id, name, public)
-values ('listing-photos', 'listing-photos', true)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'listing-photos', 'listing-photos', true,
+  8 * 1024 * 1024,
+  array['image/jpeg','image/png','image/webp','image/gif','image/avif']
+)
+on conflict (id) do update
+  set file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
 
-insert into storage.buckets (id, name, public)
-values ('chat-images', 'chat-images', true)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'chat-media', 'chat-media', true,
+  20 * 1024 * 1024,
+  array['image/jpeg','image/png','image/webp','image/gif','image/avif',
+        'video/mp4','video/webm','video/quicktime']
+)
+on conflict (id) do update
+  set file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists photos_read on storage.objects;
 create policy photos_read on storage.objects
-  for select using (bucket_id in ('listing-photos','chat-images'));
+  for select using (bucket_id in ('listing-photos','chat-media'));
 
 drop policy if exists photos_insert on storage.objects;
 create policy photos_insert on storage.objects
   for insert to authenticated
   with check (
-    bucket_id in ('listing-photos','chat-images')
+    bucket_id in ('listing-photos','chat-media')
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 

@@ -32,5 +32,6 @@ window.CL_CONFIG = {
 
   // Uploaded photos go to this Storage bucket. See README → Storage.
   photoBucket: 'listing-photos',
-  chatBucket: 'chat-images',
+  // Photos and videos shared inside a chat.
+  chatBucket: 'chat-media',
 };

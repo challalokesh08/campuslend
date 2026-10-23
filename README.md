@@ -124,15 +124,17 @@ Two details that are easy to get wrong and are handled here:
 - Market: search, category filter, responsive grid
 - Listing detail with owner, price, condition, location
 - Every listing has two faces: a photo and an emoji. Tap the card image (or the image in the detail sheet) and it flips over.
-- Real-time chat: optimistic send, delivered/read ticks, day separators, message grouping, typing indicator, image messages, auto-scroll
+- Each profile chooses which face comes first. The default is the emoji; switch to photo in Profile → **Cards open with**.
+- Listing a new item **requires a photo**. The post form uploads it, downsizes it in the browser, and that photo is what appears when the card is flipped.
+- Real-time chat: optimistic send, delivered/read ticks, day separators, message grouping, typing indicator, photo and video messages, tap a photo to open it full screen, auto-scroll
 - Unread counts on both the tab bar and the desktop rail
 - Post a listing; remove your own
 - Profile with a trust rating
 - Dark mode, following the system and overridable
-- Keyboard: Enter sends, Shift+Enter breaks the line, Escape closes sheets
+- Keyboard: Enter sends, Shift+Enter breaks the line, Escape closes sheets and the photo viewer
 - Lighthouse: 100 accessibility, 100 best practices, 100 SEO
 
-## Object photos
+## Photos and video
 
 The seeded listings use real photographs, resized and re-encoded into
 `assets/img/items/`. Every file is credited with its author and licence in
@@ -143,15 +145,24 @@ results are almost always someone else's copyright, and Google's terms do not
 grant the right to reuse them. These come from Wikimedia Commons under CC0, CC BY
 or CC BY-SA, all of which permit this use with the credit that ships alongside.
 
-The second face of each card is an emoji derived from the listing title, so
-listings posted by students — which have no photo yet — still get a matching one.
+The other face of each card is an emoji derived from the listing title. Whichever
+face a reader chose shows first; the other is one tap away.
+
+Photos are the one thing a renter cannot judge from a title, so a listing cannot
+be published without one. The browser downscales it to 1200 px on the long edge
+before upload, which keeps Storage small and demo mode inside the localStorage
+quota; the photo requirement is also a `check` constraint in the schema, so the
+rule holds even if someone calls the API directly.
+
+Chat accepts photos and videos — useful for "this is how I got it / this is how
+I returned it" proof. Limits: 20 MB per file in live mode, 1.5 MB per video in
+demo mode (localStorage cannot hold a real phone video). Photos of any size up to
+15 MB are accepted and resized before upload.
 
 ## What is deliberately not here yet
 
-
 - **Bookings and payment.** The capture flow stops at "agree in chat, pay over UPI on return." A real booking state machine is the next piece of product work, and it needs a decision about deposits first.
 - **Push notifications.** A web app can do this later via a service worker; it was not worth a service worker before the messaging itself was proven.
-- **Photo upload UI for listings.** The schema and bucket support it; the post form does not yet offer a file picker. Chat images do upload.
 - **Moderation.** A campus pilot will need a report button and someone to read the reports.
 
 ---

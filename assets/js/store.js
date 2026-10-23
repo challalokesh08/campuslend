@@ -32,7 +32,7 @@
     { id: 'u-isha', full_name: 'Isha Nair', email: 'isha.n@cambridge.edu.in', campus: 'Cambridge Institute of Technology', rating_sum: 39, rating_count: 8 },
   ];
 
-  const ME = { id: 'u-me', full_name: 'You', email: 'you@cambridge.edu.in', campus: 'Cambridge Institute of Technology', rating_sum: 22, rating_count: 5 };
+  const ME = { id: 'u-me', full_name: 'You', email: 'you@cambridge.edu.in', campus: 'Cambridge Institute of Technology', rating_sum: 22, rating_count: 5, face_first: 'emoji' };
 
   const CATEGORIES = [
     { id: 'all', label: 'Everything', icon: 'i-market' },
@@ -112,20 +112,35 @@
         return fresh;
       }
 
-      // Demo stores written before the photos existed have photo_url: null.
-      // Backfill them by title so returning visitors see the real photos
-      // without losing the conversations they already have.
-      if (this.backfillPhotos(db)) this.save(db);
+      // Demo stores written before the photos existed have photo_url: null,
+      // and stores written before media messages existed use image_url.
+      // Bring both forward without losing conversations or posts.
+      if (this.migrate(db)) this.save(db);
       return db;
     },
 
-    backfillPhotos(db) {
-      const byTitle = new Map(SEED_LISTINGS.map((l) => [l.title, l.photo]));
+    migrate(db) {
       let changed = false;
+
+      for (const m of (db && db.messages) || []) {
+        if (m.image_url) {
+          if (!m.media_url) m.media_url = m.image_url;
+          if (!m.media_type) m.media_type = 'image';
+          delete m.image_url;
+          changed = true;
+        }
+      }
+
+      for (const u of (db && db.users) || []) {
+        if (!u.face_first) { u.face_first = 'emoji'; changed = true; }
+      }
+
+      const byTitle = new Map(SEED_LISTINGS.map((l) => [l.title, l.photo]));
       for (const l of (db && db.listings) || []) {
         const photo = byTitle.get(l.title);
         if (photo && !l.photo_url) { l.photo_url = photo; changed = true; }
       }
+
       return changed;
     },
 
@@ -164,11 +179,33 @@
     async verify(email, code) {
       if (String(code).trim() !== '123456') throw new Error('That code is not right. Demo mode uses 123456.');
       const profile = { ...ME, full_name: nameFromEmail(email), email: email.toLowerCase() };
-      this.setSession(profile);
       const db = this.load();
-      if (!db.users.find((u) => u.id === ME.id)) db.users.push(profile);
+      const existing = db.users.find((u) => u.id === ME.id);
+      // Someone who has already been here keeps the face they chose.
+      if (existing) {
+        if (existing.face_first) profile.face_first = existing.face_first;
+        Object.assign(existing, {
+          full_name: profile.full_name,
+          email: profile.email,
+          face_first: profile.face_first,
+        });
+      } else {
+        db.users.push(profile);
+      }
+      this.setSession(profile);
       this.save(db);
       return profile;
+    },
+
+    async setFaceFirst(pref) {
+      const value = pref === 'photo' ? 'photo' : 'emoji';
+      const db = this.db || this.load();
+      const me = db.users.find((u) => u.id === ME.id);
+      if (me) me.face_first = value;
+      this.save(db);
+      const session = this.session();
+      if (session) this.setSession({ ...session, face_first: value });
+      return value;
     },
 
     user(id) {
@@ -225,14 +262,15 @@
       return db.messages.filter((m) => m.conversation_id === convId).sort((a, b) => a.created_at.localeCompare(b.created_at));
     },
 
-    async send(convId, { body, image }) {
+    async send(convId, { body, media, mediaType }) {
       const db = this.db || this.load();
       const msg = {
         id: 'm-' + Math.random().toString(36).slice(2, 10),
         conversation_id: convId,
         sender_id: meId(),
         body: body || '',
-        image_url: image || null,
+        media_url: media || null,
+        media_type: media ? (mediaType || 'image') : null,
         created_at: new Date().toISOString(),
         read_at: null,
       };
@@ -297,6 +335,7 @@
     },
 
     async createListing(data) {
+      if (!data.photo) throw new Error('Add a photo of the item before listing it.');
       const db = this.db || this.load();
       const l = {
         id: 'l-' + Math.random().toString(36).slice(2, 9),
@@ -307,7 +346,7 @@
         price_per_hour: Number(data.price) || 0,
         location: data.location || '',
         condition: data.condition || 'good',
-        photo_url: data.photo || null,
+        photo_url: data.photo,
         hue: Math.floor(Math.random() * 360),
         status: 'active',
         created_at: new Date().toISOString(),
@@ -315,6 +354,16 @@
       db.listings.push(l);
       this.save(db);
       return l;
+    },
+
+    async uploadPhoto(file) {
+      if (!file) throw new Error('Add a photo of the item.');
+      return readAsDataURL(file);
+    },
+
+    async uploadChatMedia(file) {
+      if (!file) throw new Error('Choose a file first.');
+      return readAsDataURL(file);
     },
 
     async myListings() {
@@ -332,6 +381,16 @@
   };
 
   const MYSTERY = { id: 'u-unknown', full_name: 'Someone', email: '', campus: '', rating_sum: 0, rating_count: 0 };
+
+  /** Demo mode has no storage bucket, so a file becomes a data URL. */
+  function readAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject(new Error('Could not read that file.'));
+      r.readAsDataURL(file);
+    });
+  }
 
   /** "aarav.s@campus.edu" -> "Aarav S" — the same rule the database trigger uses. */
   function nameFromEmail(email) {
@@ -351,6 +410,20 @@
     sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     });
+  }
+
+  /** Upload to a public bucket under the user's own folder (storage policy). */
+  async function uploadTo(bucket, file) {
+    const raw = (file.name || 'upload').split('.').pop() || '';
+    const ext = (raw.length <= 5 && /^[a-z0-9]+$/i.test(raw)) ? raw.toLowerCase() : 'bin';
+    const path = meId() + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+    const { error } = await sb.storage.from(bucket).upload(path, file, {
+      upsert: false,
+      contentType: file.type || 'application/octet-stream',
+    });
+    if (error) throw new Error(error.message);
+    const { data } = sb.storage.from(bucket).getPublicUrl(path);
+    return data.publicUrl;
   }
 
   function meId() {
@@ -455,7 +528,7 @@
       // One query for the newest message per conversation, rather than N.
       const ids = rows.map((c) => c.id);
       const { data: recent } = await sb.from('messages')
-        .select('id, conversation_id, sender_id, body, image_url, created_at, read_at')
+        .select('id, conversation_id, sender_id, body, media_url, media_type, created_at, read_at')
         .in('conversation_id', ids)
         .order('created_at', { ascending: false })
         .limit(400);
@@ -509,9 +582,15 @@
       return data || [];
     },
 
-    async send(convId, { body, image }) {
+    async send(convId, { body, media, mediaType }) {
       const { data, error } = await sb.from('messages')
-        .insert({ conversation_id: convId, sender_id: meId(), body: body || '', image_url: image || null })
+        .insert({
+          conversation_id: convId,
+          sender_id: meId(),
+          body: body || '',
+          media_url: media || null,
+          media_type: media ? (mediaType || 'image') : null,
+        })
         .select().single();
       if (error) throw new Error(error.message);
       await sb.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', convId);
@@ -527,6 +606,7 @@
     },
 
     async createListing(data) {
+      if (!data.photo) throw new Error('Add a photo of the item before listing it.');
       const { data: row, error } = await sb.from('listings').insert({
         owner_id: meId(),
         title: data.title,
@@ -535,11 +615,18 @@
         price_per_hour: Number(data.price) || 0,
         location: data.location || '',
         condition: data.condition || 'good',
-        photo_url: data.photo || null,
+        photo_url: data.photo,
         hue: Math.floor(Math.random() * 360),
       }).select().single();
       if (error) throw new Error(error.message);
       return row;
+    },
+
+    async setFaceFirst(pref) {
+      const value = pref === 'photo' ? 'photo' : 'emoji';
+      const { error } = await sb.from('profiles').update({ face_first: value }).eq('id', meId());
+      if (error) throw new Error(error.message);
+      return value;
     },
 
     async myListings() {
@@ -572,13 +659,14 @@
       channels.push(ch);
     },
 
-    async uploadImage(file) {
-      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-      const path = meId() + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
-      const { error } = await sb.storage.from(CFG.chatBucket).upload(path, file, { upsert: false, contentType: file.type });
-      if (error) throw new Error(error.message);
-      const { data } = sb.storage.from(CFG.chatBucket).getPublicUrl(path);
-      return data.publicUrl;
+    async uploadPhoto(file) {
+      if (!file) throw new Error('Add a photo of the item.');
+      return uploadTo(CFG.photoBucket, file);
+    },
+
+    async uploadChatMedia(file) {
+      if (!file) throw new Error('Choose a file first.');
+      return uploadTo(CFG.chatBucket, file);
     },
   };
 
@@ -614,8 +702,12 @@
   } else {
     Object.assign(store, {
       async start() {
-        demo.load();
-        return demo.session();
+        const db = demo.load();
+        const saved = demo.session();
+        if (!saved) return null;
+        // Pull the stored preference so a returning visitor keeps their choice.
+        const row = db.users.find((u) => u.id === ME.id);
+        return row && row.face_first ? { ...saved, face_first: row.face_first } : saved;
       },
       signIn: (e) => demo.signIn(e),
       verify: (e, c) => demo.verify(e, c),
@@ -631,15 +723,9 @@
       myListings: () => demo.myListings(),
       deleteListing: (id) => demo.deleteListing(id),
       subscribe() {},
-      async uploadImage(file) {
-        // Data URL, so demo mode can show a picture without any storage.
-        return await new Promise((resolve, reject) => {
-          const r = new FileReader();
-          r.onload = () => resolve(r.result);
-          r.onerror = () => reject(new Error('Could not read that image.'));
-          r.readAsDataURL(file);
-        });
-      },
+      setFaceFirst: (p) => demo.setFaceFirst(p),
+      uploadPhoto: (f) => demo.uploadPhoto(f),
+      uploadChatMedia: (f) => demo.uploadChatMedia(f),
     });
   }
 
