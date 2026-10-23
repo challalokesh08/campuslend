@@ -100,13 +100,33 @@
     db: null,
 
     load() {
+      let db = null;
       try {
         const raw = localStorage.getItem(DEMO_KEY);
-        if (raw) return JSON.parse(raw);
+        if (raw) db = JSON.parse(raw);
       } catch (e) { /* fall through to a fresh seed */ }
-      const fresh = seed();
-      this.save(fresh);
-      return fresh;
+
+      if (!db) {
+        const fresh = seed();
+        this.save(fresh);
+        return fresh;
+      }
+
+      // Demo stores written before the photos existed have photo_url: null.
+      // Backfill them by title so returning visitors see the real photos
+      // without losing the conversations they already have.
+      if (this.backfillPhotos(db)) this.save(db);
+      return db;
+    },
+
+    backfillPhotos(db) {
+      const byTitle = new Map(SEED_LISTINGS.map((l) => [l.title, l.photo]));
+      let changed = false;
+      for (const l of (db && db.listings) || []) {
+        const photo = byTitle.get(l.title);
+        if (photo && !l.photo_url) { l.photo_url = photo; changed = true; }
+      }
+      return changed;
     },
 
     save(db) {
