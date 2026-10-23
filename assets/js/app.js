@@ -398,19 +398,16 @@
 
   function card(item) {
     const mine = state.me && item.owner_id === state.me.id;
-    const on = flipped.has(item.id);
-    const first = faceFirst();
-    const shown = on ? otherFace(first) : first;
+    const h = item.hue == null ? hueOf(item.title || item.id) : item.hue;
     return `
       <article class="card">
-        <button class="card__media${on ? ' is-flipped' : ''}" type="button"
-                data-flip="${esc(item.id)}" data-face-first="${first}" data-title="${esc(item.title)}"
-                aria-pressed="${on}"
-                aria-label="Show ${otherFace(shown)}: ${esc(item.title)}">
-          ${flipFaces(item)}
+        <button class="card__media" type="button" data-item="${esc(item.id)}" aria-label="${esc(item.title)}">
+          <span class="flip__face flip__face--emoji" aria-hidden="true"
+                style="background:linear-gradient(140deg,hsl(${h},54%,74%),hsl(${(h + 34) % 360},50%,52%))">
+            <span class="flip__emoji">${emojiFor(item)}</span>
+          </span>
           <span class="card__price" aria-hidden="true">₹${esc(item.price_per_hour)}<small>/hr</small></span>
           ${mine ? '<span class="card__badge card__badge--mine" aria-hidden="true">Yours</span>' : ''}
-          <span class="card__flipcue" aria-hidden="true"><svg><use href="#i-flip"/></svg></span>
         </button>
         <button class="card__body" type="button" data-item="${esc(item.id)}">
           <span class="card__title">${esc(item.title)}</span>
@@ -475,13 +472,12 @@
 
       cardEl.innerHTML = `
         <div class="sheet__hero">
-          <button class="sheet__heroflip${flipped.has(item.id) ? ' is-flipped' : ''}" type="button"
-                  data-flip="${esc(item.id)}" data-face-first="${faceFirst()}" data-title="${esc(item.title)}"
-                  aria-pressed="${flipped.has(item.id)}"
-                  aria-label="Flip between photo and emoji for ${esc(item.title)}">
-            ${flipFaces(item)}
-            <span class="sheet__fliphint" aria-hidden="true"><svg><use href="#i-flip"/></svg>Tap to flip</span>
-          </button>
+          <div class="sheet__heroflip">
+            <span class="flip__face flip__face--emoji" aria-hidden="true"
+                  style="background:linear-gradient(140deg,hsl(${h},54%,74%),hsl(${(h + 34) % 360},50%,52%))">
+              <span class="flip__emoji">${emojiFor(item)}</span>
+            </span>
+          </div>
           <button class="sheet__close" type="button" data-close="sheet" aria-label="Close"><svg><use href="#i-close"/></svg></button>
         </div>
         <div class="sheet__body">
@@ -543,7 +539,7 @@
     const mine = last && state.me && last.sender_id === state.me.id;
     const preview = last
       ? (last.media_url && !last.body
-          ? (last.media_type === 'video' ? 'Video' : 'Photo')
+          ? 'Photo'
           : (last.body || ''))
       : 'Say hello';
     const tick = mine ? `<svg class="tick ${last.read_at ? 'tick--read' : 'tick--sent'}" style="width:14px;height:14px"><use href="#${last.read_at ? 'i-checks' : 'i-check'}"/></svg>` : '';
@@ -618,15 +614,10 @@
         : '';
 
       const body = m.media_url
-        ? (m.media_type === 'video'
-            ? `<div class="bubble bubble--media">
-                 <video class="bubble__video" src="${esc(m.media_url)}" controls playsinline preload="metadata"></video>
-                 <span class="bubble__meta">${esc(timeShort(m.created_at))} ${tick}</span>
-               </div>`
-            : `<div class="bubble bubble--media bubble--img" data-media="${esc(m.media_url)}" role="button" tabindex="0" aria-label="Open photo">
-                 <img class="bubble__img" src="${esc(m.media_url)}" alt="Photo" loading="lazy" decoding="async" onerror="this.style.display='none'">
-                 <span class="bubble__meta">${esc(timeShort(m.created_at))} ${tick}</span>
-               </div>`)
+        ? `<div class="bubble bubble--media bubble--img" data-media="${esc(m.media_url)}" role="button" tabindex="0" aria-label="Open photo">
+             <img class="bubble__img" src="${esc(m.media_url)}" alt="Photo" loading="lazy" decoding="async" onerror="this.style.display='none'">
+             <span class="bubble__meta">${esc(timeShort(m.created_at))} ${tick}</span>
+           </div>`
         : `<div class="bubble">${esc(m.body)}<span class="bubble__meta">${esc(timeShort(m.created_at))} ${tick}</span></div>`;
 
       out.push(
@@ -746,35 +737,22 @@
 
   async function sendMedia(file) {
     if (!file || !state.activeConv) return;
-    const isVideo = /^video\//.test(file.type);
     const isImage = /^image\//.test(file.type);
 
-    if (!isVideo && !isImage) {
-      toast('Send a photo or a video.', 'err');
+    if (!isImage) {
+      toast('Send a photo only.', 'err');
       return;
     }
 
     try {
-      let payload = file;
-
-      if (isVideo) {
-        // Demo mode keeps files in localStorage, so it cannot swallow a real
-        // phone video. The live build uploads to Storage.
-        const cap = S.mode === 'demo' ? 1.5 * 1024 * 1024 : MAX_VIDEO_BYTES;
-        if (file.size > cap) {
-          throw new Error('That video is ' + megabytes(file.size) + '. The limit is ' + megabytes(cap) + '.');
-        }
-        toast('Uploading video…');
-      } else {
-        if (file.size > MAX_IMAGE_BYTES) throw new Error('That photo is over 15 MB.');
-        toast('Uploading photo…');
-        payload = await prepareImage(file, 1400, 0.8);
-      }
+      if (file.size > MAX_IMAGE_BYTES) throw new Error('That photo is over 15 MB.');
+      toast('Uploading photo…');
+      const payload = await prepareImage(file, 1400, 0.8);
 
       const url = await S.uploadChatMedia(payload);
       await S.send(state.activeConv, {
         media: url,
-        mediaType: isVideo ? 'video' : 'image',
+        mediaType: 'image',
         body: '',
       });
       state.messages = await S.messages(state.activeConv);
@@ -870,16 +848,6 @@
           <span class="prow__icon"><svg><use href="#i-bolt"/></svg></span>
           <span class="prow__main"><span class="prow__label">Backend</span><span class="prow__sub">${S.mode === 'live' ? 'Connected to Supabase' : 'Local demo data on this device'}</span></span>
           <span class="prow__value">${S.mode === 'live' ? 'Live' : 'Demo'}</span>
-        </div>
-        <div class="prow">
-          <span class="prow__icon"><svg><use href="#i-flip"/></svg></span>
-          <span class="prow__main"><span class="prow__label">Cards open with</span><span class="prow__sub">The face you see before flipping</span></span>
-          <span class="seg" role="group" aria-label="Default card face">
-            <button class="seg__btn${faceFirst() === 'emoji' ? ' is-on' : ''}" type="button"
-                    data-face="emoji" aria-pressed="${faceFirst() === 'emoji'}">Emoji</button>
-            <button class="seg__btn${faceFirst() === 'photo' ? ' is-on' : ''}" type="button"
-                    data-face="photo" aria-pressed="${faceFirst() === 'photo'}">Photo</button>
-          </span>
         </div>
         <div class="prow">
           <span class="prow__icon"><svg><use href="#i-eye"/></svg></span>
