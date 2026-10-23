@@ -296,11 +296,17 @@
       $('#market-heading').textContent = state.query.trim() ? 'Results' : (state.category === 'all' ? 'Near you' : 'In ' + catLabel(state.category));
 
       if (!state.listings.length) {
+        const scoped = state.category !== 'all';
         grid.innerHTML = `
           <div class="empty" style="grid-column:1/-1">
             <div class="empty__glyph"><svg><use href="#i-search"/></svg></div>
             <h3>${state.query.trim() ? 'Nothing matches that' : 'Nothing here yet'}</h3>
-            <p>${state.query.trim() ? 'Try a broader word, or clear the filters.' : 'Be the first to list something in this category.'}</p>
+            <p>${state.query.trim()
+              ? (scoped ? 'Nothing in this category matches. It may be in another one.' : 'Try a broader word, or check the spelling.')
+              : 'Be the first to list something in this category.'}</p>
+            ${scoped && state.query.trim()
+              ? '<button class="btn btn--ghost" type="button" data-cat="all">Search everything</button>'
+              : ''}
           </div>`;
         return;
       }
