@@ -85,6 +85,68 @@
     return item.photo_url || art(item);
   }
 
+  /**
+   * The emoji side of a listing. Derived from the title so it works for
+   * user-posted items and for live Supabase rows without a schema change.
+   * Order matters: the specific rules must come before the general ones.
+   */
+  const EMOJI_RULES = [
+    [/graphing|ti-?8[34]/i, '📈'],
+    [/calculat/i, '🧮'],
+    [/cycle|bicycle|bike/i, '🚲'],
+    [/camera|dslr|canon|nikon/i, '📷'],
+    [/cricket/i, '🏏'],
+    [/badminton|shuttle/i, '🏸'],
+    [/racket|racquet/i, '🏸'],
+    [/projector|beamer/i, '📽️'],
+    [/speaker|soundbar|audio/i, '🔊'],
+    [/headphone|earphone|earbud/i, '🎧'],
+    [/lab ?coat|coat/i, '🥼'],
+    [/backpack|rucksack|bag/i, '🎒'],
+    [/usb|dock|hub|charger/i, '🔌'],
+    [/shoe|loafer|sneaker/i, '👞'],
+    [/laptop|macbook|chromebook/i, '💻'],
+    [/mic|microphone/i, '🎤'],
+    [/guitar|ukulele/i, '🎸'],
+    [/tripod/i, '📐'],
+    [/drone/i, '🚁'],
+    [/helmet/i, '🪖'],
+    [/tent/i, '⛺'],
+    [/lamp|light/i, '💡'],
+    [/fan|cooler/i, '🌀'],
+    [/book|notes/i, '📚'],
+    [/umbrella/i, '☂️'],
+    [/chair|table|desk/i, '🪑'],
+  ];
+  const CATEGORY_EMOJI = {
+    electronics: '🔌', study: '📚', transport: '🚲',
+    events: '🎉', sports: '🏸', all: '📦',
+  };
+
+  function emojiFor(item) {
+    const hay = String((item && item.title) || '');
+    for (const [re, emoji] of EMOJI_RULES) if (re.test(hay)) return emoji;
+    return CATEGORY_EMOJI[(item && item.category) || 'all'] || '📦';
+  }
+
+  /**
+   * Two faces: the photo (or the generated art when there is no photo) and
+   * the emoji. The parent element carries .is-flipped; CSS rotates the pair.
+   */
+  function flipFaces(item) {
+    const h = item.hue == null ? hueOf(item.title || item.id) : item.hue;
+    return `
+      <span class="flip">
+        <span class="flip__face flip__face--front">
+          <img src="${esc(photoOf(item))}" alt="" loading="lazy" decoding="async">
+        </span>
+        <span class="flip__face flip__face--back" aria-hidden="true"
+              style="background:linear-gradient(140deg,hsl(${h},54%,74%),hsl(${(h + 34) % 360},50%,52%))">
+          <span class="flip__emoji">${emojiFor(item)}</span>
+        </span>
+      </span>`;
+  }
+
   function timeShort(iso) {
     const d = new Date(iso);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -144,6 +206,9 @@
     typing: null,
     threadBusy: false,
   };
+
+  /** Listings the reader has flipped to the emoji side, kept across re-renders. */
+  const flipped = new Set();
 
   /* ---------------------------------------------------------------- auth */
 
@@ -269,19 +334,24 @@
 
   function card(item) {
     const mine = state.me && item.owner_id === state.me.id;
+    const on = flipped.has(item.id);
     return `
-      <button class="card" type="button" data-item="${esc(item.id)}">
-        <span class="card__media">
-          <img src="${esc(photoOf(item))}" alt="" loading="lazy" decoding="async">
-          <span class="card__price">₹${esc(item.price_per_hour)}<small>/hr</small></span>
-          ${mine ? '<span class="card__badge card__badge--mine">Yours</span>' : ''}
-        </span>
-        <span class="card__body">
+      <article class="card">
+        <button class="card__media${on ? ' is-flipped' : ''}" type="button"
+                data-flip="${esc(item.id)}" aria-pressed="${on}"
+                aria-label="${on ? 'Show photo' : 'Show emoji'}: ${esc(item.title)}">
+          ${flipFaces(item)}
+          <span class="card__price" aria-hidden="true">₹${esc(item.price_per_hour)}<small>/hr</small></span>
+          ${mine ? '<span class="card__badge card__badge--mine" aria-hidden="true">Yours</span>' : ''}
+          <span class="card__flipcue" aria-hidden="true"><svg><use href="#i-flip"/></svg></span>
+        </button>
+        <button class="card__body" type="button" data-item="${esc(item.id)}">
           <span class="card__title">${esc(item.title)}</span>
           <span class="card__meta"><svg aria-hidden="true"><use href="#i-pin"/></svg>${esc(item.location || 'Campus')}</span>
           <span class="card__owner">${avatar(item.owner, 'avatar--sm')}<span>${esc(item.owner ? item.owner.full_name : 'Someone')}</span></span>
-        </span>
-      </button>`;
+          <span class="sr-only">${esc(item.price_per_hour)} rupees per hour</span>
+        </button>
+      </article>`;
   }
 
   async function loadMarket() {
@@ -338,7 +408,12 @@
 
       cardEl.innerHTML = `
         <div class="sheet__hero">
-          <img src="${esc(photoOf(item))}" alt="">
+          <button class="sheet__heroflip${flipped.has(item.id) ? ' is-flipped' : ''}" type="button"
+                  data-flip="${esc(item.id)}" aria-pressed="${flipped.has(item.id)}"
+                  aria-label="Flip between photo and emoji for ${esc(item.title)}">
+            ${flipFaces(item)}
+            <span class="sheet__fliphint" aria-hidden="true"><svg><use href="#i-flip"/></svg>Tap to flip</span>
+          </button>
           <button class="sheet__close" type="button" data-close="sheet" aria-label="Close"><svg><use href="#i-close"/></svg></button>
         </div>
         <div class="sheet__body">
@@ -771,6 +846,20 @@
 
       const cat = e.target.closest('[data-cat]');
       if (cat) { state.category = cat.dataset.cat; loadMarket(); return; }
+
+      // Flip a card (or the sheet hero) between its photo and emoji side.
+      const flipBtn = e.target.closest('[data-flip]');
+      if (flipBtn) {
+        const id = flipBtn.dataset.flip;
+        const on = flipBtn.classList.toggle('is-flipped');
+        flipBtn.setAttribute('aria-pressed', String(on));
+        if (on) flipped.add(id); else flipped.delete(id);
+        if (flipBtn.classList.contains('card__media')) {
+          const item = state.listings.find((x) => x.id === id);
+          flipBtn.setAttribute('aria-label', (on ? 'Show photo' : 'Show emoji') + (item ? ': ' + item.title : ''));
+        }
+        return;
+      }
 
       const item = e.target.closest('[data-item]');
       if (item) { openItem(item.dataset.item); return; }

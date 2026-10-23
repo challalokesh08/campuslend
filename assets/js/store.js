@@ -44,18 +44,18 @@
   ];
 
   const SEED_LISTINGS = [
-    { title: 'Casio FX-991EX calculator', category: 'study', price: 20, location: 'Block C, 2nd floor', condition: 'like-new', owner: 'u-diya', description: 'The one the exam allows. Fresh battery, cover included.', hue: 158 },
-    { title: 'Hero Sprint cycle', category: 'transport', price: 35, location: 'Cycle stand, Gate 2', condition: 'good', owner: 'u-aarav', description: 'Gears work, brakes are new. Comes with a lock.', hue: 205 },
-    { title: 'DSLR for club shoots', category: 'electronics', price: 150, location: 'Media room', condition: 'good', owner: 'u-sneha', description: 'Canon 200D with a 50mm lens. Two batteries, one charger.', hue: 268 },
-    { title: 'Lab coat, size M', category: 'study', price: 10, location: 'Hostel B', condition: 'good', owner: 'u-rahul', description: 'Washed and ironed. Saved my practical marks twice.', hue: 190 },
-    { title: 'Bluetooth speaker', category: 'events', price: 60, location: 'Block A common room', condition: 'good', owner: 'u-isha', description: 'Loud enough for a 40-person room. Charged.', hue: 22 },
-    { title: 'Badminton racket pair', category: 'sports', price: 25, location: 'Sports complex', condition: 'fair', owner: 'u-aarav', description: 'Two rackets and a tube of shuttles.', hue: 142 },
-    { title: 'Graphing calculator TI-84', category: 'study', price: 30, location: 'Library desk 4', condition: 'good', owner: 'u-sneha', description: 'For the stats paper. Works, screen is clean.', hue: 330 },
-    { title: 'Projector, 720p', category: 'events', price: 200, location: 'Seminar hall store', condition: 'good', owner: 'u-diya', description: 'HDMI cable included. Needs a wall socket nearby.', hue: 240 },
-    { title: 'Trekking backpack, 50L', category: 'transport', price: 40, location: 'Hostel C', condition: 'like-new', owner: 'u-rahul', description: 'Rain cover included. Did one Coorg trip.', hue: 95 },
-    { title: 'USB-C dock', category: 'electronics', price: 45, location: 'Block D, 3rd floor', condition: 'like-new', owner: 'u-isha', description: 'HDMI, two USB-A, SD card reader. For presentations.', hue: 285 },
-    { title: 'Cricket bat and ball', category: 'sports', price: 20, location: 'Ground equipment room', condition: 'fair', owner: 'u-diya', description: 'Kashmir willow. Grip is worn but it plays fine.', hue: 40 },
-    { title: 'Formal shoes, UK 8', category: 'events', price: 30, location: 'Hostel A', condition: 'good', owner: 'u-rahul', description: 'For placements. Polished, barely worn.', hue: 210 },
+    { title: 'Casio FX-991EX calculator', category: 'study', price: 20, location: 'Block C, 2nd floor', condition: 'like-new', owner: 'u-diya', description: 'The one the exam allows. Fresh battery, cover included.', hue: 158, photo: 'assets/img/items/scientific-calculator.jpg' },
+    { title: 'Hero Sprint cycle', category: 'transport', price: 35, location: 'Cycle stand, Gate 2', condition: 'good', owner: 'u-aarav', description: 'Gears work, brakes are new. Comes with a lock.', hue: 205, photo: 'assets/img/items/bicycle.jpg' },
+    { title: 'DSLR for club shoots', category: 'electronics', price: 150, location: 'Media room', condition: 'good', owner: 'u-sneha', description: 'Canon 200D with a 50mm lens. Two batteries, one charger.', hue: 268, photo: 'assets/img/items/dslr.jpg' },
+    { title: 'Lab coat, size M', category: 'study', price: 10, location: 'Hostel B', condition: 'good', owner: 'u-rahul', description: 'Washed and ironed. Saved my practical marks twice.', hue: 190, photo: 'assets/img/items/lab-coat.jpg' },
+    { title: 'Bluetooth speaker', category: 'events', price: 60, location: 'Block A common room', condition: 'good', owner: 'u-isha', description: 'Loud enough for a 40-person room. Charged.', hue: 22, photo: 'assets/img/items/speaker.jpg' },
+    { title: 'Badminton racket pair', category: 'sports', price: 25, location: 'Sports complex', condition: 'fair', owner: 'u-aarav', description: 'Two rackets and a tube of shuttles.', hue: 142, photo: 'assets/img/items/badminton.jpg' },
+    { title: 'Graphing calculator TI-84', category: 'study', price: 30, location: 'Library desk 4', condition: 'good', owner: 'u-sneha', description: 'For the stats paper. Works, screen is clean.', hue: 330, photo: 'assets/img/items/graphing-calculator.jpg' },
+    { title: 'Projector, 720p', category: 'events', price: 200, location: 'Seminar hall store', condition: 'good', owner: 'u-diya', description: 'HDMI cable included. Needs a wall socket nearby.', hue: 240, photo: 'assets/img/items/projector.jpg' },
+    { title: 'Trekking backpack, 50L', category: 'transport', price: 40, location: 'Hostel C', condition: 'like-new', owner: 'u-rahul', description: 'Rain cover included. Did one Coorg trip.', hue: 95, photo: 'assets/img/items/backpack.jpg' },
+    { title: 'USB-C dock', category: 'electronics', price: 45, location: 'Block D, 3rd floor', condition: 'like-new', owner: 'u-isha', description: 'HDMI, two USB-A, SD card reader. For presentations.', hue: 285, photo: 'assets/img/items/usb-dock.jpg' },
+    { title: 'Cricket bat and ball', category: 'sports', price: 20, location: 'Ground equipment room', condition: 'fair', owner: 'u-diya', description: 'Kashmir willow. Grip is worn but it plays fine.', hue: 40, photo: 'assets/img/items/cricket-bat.jpg' },
+    { title: 'Formal shoes, UK 8', category: 'events', price: 30, location: 'Hostel A', condition: 'good', owner: 'u-rahul', description: 'For placements. Polished, barely worn.', hue: 210, photo: 'assets/img/items/formal-shoes.jpg' },
   ];
 
   function seed() {
@@ -69,7 +69,7 @@
       price_per_hour: l.price,
       location: l.location,
       condition: l.condition,
-      photo_url: null,
+      photo_url: l.photo || null,
       hue: l.hue,
       status: 'active',
       created_at: new Date(now - (i + 1) * 3600e3).toISOString(),

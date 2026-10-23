@@ -123,6 +123,7 @@ Two details that are easy to get wrong and are handled here:
 - Sign in with a college email and a six-digit code
 - Market: search, category filter, responsive grid
 - Listing detail with owner, price, condition, location
+- Every listing has two faces: a photo and an emoji. Tap the card image (or the image in the detail sheet) and it flips over.
 - Real-time chat: optimistic send, delivered/read ticks, day separators, message grouping, typing indicator, image messages, auto-scroll
 - Unread counts on both the tab bar and the desktop rail
 - Post a listing; remove your own
@@ -131,7 +132,22 @@ Two details that are easy to get wrong and are handled here:
 - Keyboard: Enter sends, Shift+Enter breaks the line, Escape closes sheets
 - Lighthouse: 100 accessibility, 100 best practices, 100 SEO
 
+## Object photos
+
+The seeded listings use real photographs, resized and re-encoded into
+`assets/img/items/`. Every file is credited with its author and licence in
+[`assets/img/ATTRIBUTION.md`](assets/img/ATTRIBUTION.md).
+
+They are deliberately **not** images lifted from a Google Images search. Search
+results are almost always someone else's copyright, and Google's terms do not
+grant the right to reuse them. These come from Wikimedia Commons under CC0, CC BY
+or CC BY-SA, all of which permit this use with the credit that ships alongside.
+
+The second face of each card is an emoji derived from the listing title, so
+listings posted by students — which have no photo yet — still get a matching one.
+
 ## What is deliberately not here yet
+
 
 - **Bookings and payment.** The capture flow stops at "agree in chat, pay over UPI on return." A real booking state machine is the next piece of product work, and it needs a decision about deposits first.
 - **Push notifications.** A web app can do this later via a service worker; it was not worth a service worker before the messaging itself was proven.
