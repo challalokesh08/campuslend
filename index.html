@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B7A5A">
+<meta name="description" content="CampusLend — rent what you need from people on your campus, by the hour.">
+<title>CampusLend</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230B7A5A'/%3E%3Cpath d='M9 21c0-4 3-7 7-7s7 3 7 7' stroke='white' stroke-width='2.2' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='10' r='3.2' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+
+<!-- Icon sprite. Inline so there is no network request and no icon font. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-market" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.6 9.6 0 0 1-3.3-.6L3 21l1.7-5a8.3 8.3 0 0 1-.7-3.4 8.4 8.4 0 0 1 8.5-8.3A8.4 8.4 0 0 1 21 11.5Z"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 2.8 12V4.8A2 2 0 0 1 4.8 2.8H12a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.4" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12 20 4l-3.5 8L20 20Z"/><path d="M4 12h12"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><circle cx="12" cy="13.5" r="3.5"/><path d="M8.5 7 10 4.5h4L15.5 7"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 13 4.5 4.5L19 7"/></symbol>
+    <symbol id="i-checks" viewBox="0 0 24 24"><path d="m2 13 4 4 8-9"/><path d="m10 17 8-9"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1L3.2 9.5l6.1-.9Z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.5l3.5 2"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z"/><circle cx="12" cy="10" r="2.6"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v6c0 4.5 3 8 7 9 4-1 7-4.5 7-9V6Z"/><path d="m9 12 2 2 4-4.5"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M15 5H6.5A1.5 1.5 0 0 0 5 6.5v11A1.5 1.5 0 0 0 6.5 19H15"/><path d="M13 12h8m0 0-3.5-3.5M21 12l-3.5 3.5"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="m4 17 5-4.5 4 3.5 3-2.5 4 3.5"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6Z"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L20 8l-4-4L4 16Z"/><path d="m14 6 4 4"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z"/><path d="M9 3v15M15 6v15"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9.5"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10" width="15" height="10.5" rx="2.5"/><path d="M8 10V7.5a4 4 0 0 1 8 0V10"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" id="app" hidden>
+
+  <!-- Desktop rail -->
+  <aside class="rail" aria-label="Primary">
+    <a class="rail__brand" href="#/market" aria-label="CampusLend">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M9.5 21.5c0-3.8 2.8-6.7 6.5-6.7s6.5 2.9 6.5 6.7" stroke="#fff" stroke-width="2.1" fill="none" stroke-linecap="round"/><circle cx="16" cy="10.4" r="3" fill="#fff"/></svg>
+    </a>
+    <nav class="rail__nav">
+      <a class="rail__link" href="#/market" data-nav="market" title="Market"><svg><use href="#i-market"/></svg><span>Market</span></a>
+      <a class="rail__link" href="#/chats" data-nav="chats" title="Chats"><svg><use href="#i-chat"/></svg><span>Chats</span><em class="rail__badge" id="rail-unread" hidden></em></a>
+      <a class="rail__link" href="#/selling" data-nav="selling" title="My listings"><svg><use href="#i-tag"/></svg><span>Listings</span></a>
+      <a class="rail__link" href="#/profile" data-nav="profile" title="Profile"><svg><use href="#i-user"/></svg><span>Profile</span></a>
+    </nav>
+    <button class="rail__avatar" id="rail-avatar" type="button" aria-label="Your account"></button>
+  </aside>
+
+  <main class="main">
+    <header class="topbar" id="topbar">
+      <div class="topbar__left">
+        <button class="iconbtn topbar__back" id="btn-back" type="button" aria-label="Back" hidden><svg><use href="#i-back"/></svg></button>
+        <div class="topbar__titles">
+          <h1 id="page-title">Market</h1>
+          <p id="page-sub"></p>
+        </div>
+      </div>
+      <div class="topbar__right" id="topbar-actions"></div>
+    </header>
+
+    <div class="views" id="views">
+
+      <!-- MARKET -->
+      <section class="view" id="view-market" data-view="market">
+        <div class="market-head">
+          <div class="search">
+            <svg><use href="#i-search"/></svg>
+            <input id="search-input" type="search" placeholder="Search calculators, cycles, lab coats…" autocomplete="off" enterkeyhint="search">
+            <button class="search__clear" id="search-clear" type="button" aria-label="Clear search" hidden><svg><use href="#i-close"/></svg></button>
+          </div>
+          <button class="btn btn--primary market-head__post" id="btn-post" type="button">
+            <svg><use href="#i-plus"/></svg><span>List an item</span>
+          </button>
+        </div>
+        <div class="chips" id="category-chips" role="tablist" aria-label="Categories"></div>
+        <div class="section-head">
+          <h2 id="market-heading">Near you</h2>
+          <span class="muted" id="market-count"></span>
+        </div>
+        <div class="listing-grid" id="market-grid" aria-live="polite"></div>
+      </section>
+
+      <!-- CHATS -->
+      <section class="view view--chats" id="view-chats" data-view="chats" hidden>
+        <div class="chats" id="chats-layout">
+          <div class="chatlist" id="chatlist-pane">
+            <div class="chatlist__head">
+              <div class="search search--sm">
+                <svg><use href="#i-search"/></svg>
+                <input id="chat-search" type="search" placeholder="Search chats" autocomplete="off">
+              </div>
+            </div>
+            <div class="chatlist__items" id="chatlist"></div>
+            <div class="empty empty--sm" id="chats-empty" hidden>
+              <div class="empty__glyph"><svg><use href="#i-chat"/></svg></div>
+              <h3>No conversations yet</h3>
+              <p>Find something in the market and message the owner.</p>
+            </div>
+          </div>
+          <div class="thread" id="thread-pane">
+            <div class="thread__empty" id="thread-empty">
+              <div class="thread__empty-art">
+                <svg><use href="#i-chat"/></svg>
+              </div>
+              <h3>Your messages</h3>
+              <p>Pick a conversation, or start one from any listing.</p>
+            </div>
+            <div class="thread__body" id="thread" hidden>
+              <header class="thread__head" id="thread-head"></header>
+              <div class="thread__scroll" id="thread-scroll">
+                <div class="thread__inner" id="thread-messages"></div>
+              </div>
+              <div class="typing" id="typing" hidden></div>
+              <form class="composer" id="composer" autocomplete="off">
+                <button class="iconbtn" id="btn-attach" type="button" aria-label="Attach a photo"><svg><use href="#i-camera"/></svg></button>
+                <textarea id="composer-input" rows="1" placeholder="Message" aria-label="Message"></textarea>
+                <button class="composer__send" id="btn-send" type="submit" aria-label="Send" disabled><svg><use href="#i-send"/></svg></button>
+                <input type="file" id="file-input" accept="image/*" hidden>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MY LISTINGS -->
+      <section class="view" id="view-selling" data-view="selling" hidden>
+        <div class="section-head">
+          <h2>Your listings</h2>
+          <span class="muted" id="selling-count"></span>
+        </div>
+        <div class="listing-grid" id="selling-grid" aria-live="polite"></div>
+        <div class="empty" id="selling-empty" hidden>
+          <div class="empty__glyph"><svg><use href="#i-tag"/></svg></div>
+          <h3>Nothing listed yet</h3>
+          <p>Anything idle in your room can earn. A calculator, a cycle, a lab coat.</p>
+          <button class="btn btn--primary" type="button" data-act="post">List your first item</button>
+        </div>
+      </section>
+
+      <!-- PROFILE -->
+      <section class="view" id="view-profile" data-view="profile" hidden>
+        <div class="profile" id="profile"></div>
+      </section>
+
+    </div>
+
+    <nav class="tabbar" aria-label="Primary">
+      <a href="#/market" data-nav="market"><svg><use href="#i-market"/></svg><span>Market</span></a>
+      <a href="#/chats" data-nav="chats"><svg><use href="#i-chat"/></svg><span>Chats</span><em class="tabbar__badge" id="tab-unread" hidden></em></a>
+      <a href="#/selling" data-nav="selling"><svg><use href="#i-tag"/></svg><span>Listings</span></a>
+      <a href="#/profile" data-nav="profile"><svg><use href="#i-user"/></svg><span>You</span></a>
+    </nav>
+  </main>
+</div>
+
+<!-- Auth -->
+<div class="auth" id="auth" hidden>
+  <div class="auth__panel">
+    <div class="auth__brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M9.5 21.5c0-3.8 2.8-6.7 6.5-6.7s6.5 2.9 6.5 6.7" stroke="#fff" stroke-width="2.1" fill="none" stroke-linecap="round"/><circle cx="16" cy="10.4" r="3" fill="#fff"/></svg>
+      <span>CampusLend</span>
+    </div>
+    <h1 class="auth__title" id="auth-title">Sign in</h1>
+    <p class="auth__lede" id="auth-lede">Use your college email. We'll send a six-digit code — no password to remember.</p>
+
+    <form id="auth-form" class="auth__form">
+      <label class="field" id="field-email">
+        <span class="field__label">College email</span>
+        <input id="auth-email" type="email" inputmode="email" autocomplete="email" placeholder="you@campus.edu" required>
+      </label>
+      <label class="field" id="field-code" hidden>
+        <span class="field__label">Six-digit code</span>
+        <input id="auth-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+      </label>
+      <p class="auth__error" id="auth-error" role="alert" hidden></p>
+      <button class="btn btn--primary btn--block" id="auth-submit" type="submit">Send code</button>
+    </form>
+
+    <button class="auth__back" id="auth-back" type="button" hidden>Use a different email</button>
+    <p class="auth__fine">By continuing you agree to be a decent human being about other people's things.</p>
+  </div>
+  <div class="auth__aside" aria-hidden="true">
+    <div class="auth__quote">
+      <p>“I needed a calculator for two hours.<br>Someone three floors up had one.”</p>
+      <span>That's the whole idea.</span>
+    </div>
+  </div>
+</div>
+
+<!-- Item sheet -->
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet__scrim" data-close="sheet"></div>
+  <div class="sheet__card" id="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-title"></div>
+</div>
+
+<!-- Post item sheet -->
+<div class="sheet" id="post-sheet" hidden>
+  <div class="sheet__scrim" data-close="post-sheet"></div>
+  <div class="sheet__card sheet__card--form" role="dialog" aria-modal="true">
+    <header class="sheet__head">
+      <h2>List an item</h2>
+      <button class="iconbtn" type="button" data-close="post-sheet" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+    </header>
+    <form class="post-form" id="post-form">
+      <label class="field">
+        <span class="field__label">What is it?</span>
+        <input name="title" maxlength="60" required placeholder="Casio FX-991 calculator">
+      </label>
+      <label class="field">
+        <span class="field__label">Category</span>
+        <select name="category" id="post-category" required></select>
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span class="field__label">Price per hour</span>
+          <div class="money"><span>₹</span><input name="price" type="number" min="1" max="5000" step="1" required placeholder="20"></div>
+        </label>
+        <label class="field">
+          <span class="field__label">Where</span>
+          <input name="location" maxlength="40" placeholder="Block C" required>
+        </label>
+      </div>
+      <label class="field">
+        <span class="field__label">Condition</span>
+        <select name="condition">
+          <option value="like-new">Like new</option>
+          <option value="good" selected>Good</option>
+          <option value="fair">Fair</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="field__label">Description <span class="muted">(optional)</span></span>
+        <textarea name="description" rows="3" maxlength="400" placeholder="Works perfectly. Barely used this semester."></textarea>
+      </label>
+      <p class="auth__error" id="post-error" role="alert" hidden></p>
+      <button class="btn btn--primary btn--block" type="submit">Publish listing</button>
+    </form>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="vendor/supabase.js" defer></script>
+<script src="assets/js/config.js" defer></script>
+<script src="assets/js/store.js" defer></script>
+<script src="assets/js/app.js" defer></script>
+</body>
+</html>
