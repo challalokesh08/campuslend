@@ -114,7 +114,7 @@ The anon key is public, so the browser is treated as hostile. Every rule lives i
 Two details that are easy to get wrong and are handled here:
 
 - **Pairs cannot be duplicated.** `conversations` stores the two user ids sorted (`check (a_id < b_id)`) with a unique index on the pair. Two people opening a chat from opposite ends get one conversation, not two.
-- **Read receipts are writes to someone else's row.** The recipient needs `UPDATE` on the sender's message to mark it read. The policy therefore allows the update but the `with check` re-verifies participation, and the trigger-free design leaves the message text untouched by the client.
+- **Read receipts are writes to someone else's row.** The recipient needs `UPDATE` on the sender's message to mark it read. A policy alone would therefore let them rewrite the text as well, so a trigger restricts an update to `read_at` and rejects any change to the body, sender, conversation or timestamp. Nothing can delete a message at all.
 
 ---
 
@@ -142,6 +142,8 @@ Two details that are easy to get wrong and are handled here:
 
 ## Notes
 
+- GitHub Pages caches assets for about ten minutes. If a change does not appear, that is usually why — a hard reload shows it immediately.
 - The college domain, campus name and bucket names are all in `assets/js/config.js`.
 - `supabase/schema.sql` is re-runnable. It uses `if not exists` and `drop policy if exists` throughout, so a second run is safe.
+- The schema has not been executed against a live Supabase project from this repo's tooling. Run it once in the SQL editor and confirm the four tables report `rowsecurity = true` (query at the end of the file) before inviting anyone.
 - The old pre-rewrite version of this project was archived and removed at the owner's request. Nothing in this repo depends on it.

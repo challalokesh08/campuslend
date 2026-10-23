@@ -218,6 +218,30 @@ create policy conversations_update on public.conversations
   using (a_id = auth.uid() or b_id = auth.uid())
   with check (a_id = auth.uid() or b_id = auth.uid());
 
+-- The client updates last_message_at after sending. A participant should not be
+-- able to repoint an existing conversation at a different listing, or at a
+-- different person, and quietly change who is talking to whom.
+create or replace function public.conversations_limited_update()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.a_id       is distinct from old.a_id
+  or new.b_id       is distinct from old.b_id
+  or new.listing_id is distinct from old.listing_id
+  or new.created_at is distinct from old.created_at then
+    raise exception 'Only the last activity time can change on a conversation'
+      using errcode = 'insufficient_privilege';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists conversations_limited_update on public.conversations;
+create trigger conversations_limited_update
+  before update on public.conversations
+  for each row execute function public.conversations_limited_update();
+
 -- ---- messages ----------------------------------------------------------
 drop policy if exists messages_read on public.messages;
 create policy messages_read on public.messages
@@ -230,8 +254,8 @@ create policy messages_insert on public.messages
   with check (sender_id = auth.uid() and public.is_participant(conversation_id));
 
 -- Marking as read is an update to someone else's row, so the recipient needs
--- this. It cannot change the text: the with-check pins it to what is already
--- there, which is why the columns are compared rather than only the owner.
+-- this policy. On its own it would also let them rewrite the text of a message
+-- after the fact. The trigger below is what limits the update to read_at.
 drop policy if exists messages_mark_read on public.messages;
 create policy messages_mark_read on public.messages
   for update to authenticated
@@ -239,7 +263,28 @@ create policy messages_mark_read on public.messages
   with check (public.is_participant(conversation_id));
 
 -- Nobody deletes a message. A chat that can be edited after the fact is not
--- evidence of anything.
+-- evidence of anything — so an update may change read_at and nothing else.
+create or replace function public.messages_read_only()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.body            is distinct from old.body
+  or new.image_url       is distinct from old.image_url
+  or new.sender_id       is distinct from old.sender_id
+  or new.conversation_id is distinct from old.conversation_id
+  or new.created_at      is distinct from old.created_at then
+    raise exception 'A message can only be marked as read'
+      using errcode = 'insufficient_privilege';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists messages_read_only on public.messages;
+create trigger messages_read_only
+  before update on public.messages
+  for each row execute function public.messages_read_only();
 
 -- =========================================================================
 -- Realtime
