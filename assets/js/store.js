@@ -264,7 +264,7 @@
       }, 2400 + Math.random() * 1400);
     },
 
-    markRead(convId) {
+    async markRead(convId) {
       const db = this.db || this.load();
       let changed = false;
       for (const m of db.messages) {
